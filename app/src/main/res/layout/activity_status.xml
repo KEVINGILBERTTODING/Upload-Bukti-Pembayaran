@@ -152,6 +152,7 @@
         android:textColor="@color/purple_200" />
     <Button
         android:id="@+id/btn_cetak"
+        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/linearLayout2"
@@ -159,6 +160,7 @@
         android:background="#f0e8e8"
         android:text="CETAK PDF"
         android:textColor="@color/purple_200" />
+
     <ImageView
         android:id="@+id/inp_gambar"
         android:layout_width="379dp"

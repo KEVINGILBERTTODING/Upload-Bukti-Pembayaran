@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 
 import android.os.FileUtils;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -86,7 +87,7 @@ public class StatusActivity extends AppCompatActivity {
         decimalFormat = new DecimalFormat("#,##0.00");
         pd = new ProgressDialog(StatusActivity.this);
         mGalery = new GalleryPhoto(getApplicationContext());
-        loadJson();
+//        loadJson();
         btngallery.setOnClickListener(new View.OnClickListener() {
                                                   @Override
                                                   public void onClick(View view) {
@@ -98,7 +99,7 @@ public class StatusActivity extends AppCompatActivity {
         {
             @Override
             public void onClick(View view) {
-                createPDF();
+//                createPDF();
             }
         });
         btnsimpan.setOnClickListener(new View.OnClickListener()
@@ -136,7 +137,8 @@ public class StatusActivity extends AppCompatActivity {
                             if (data.getInt("status") == 1) {  status.setText("Sudah  Dibayar");
                                         status.setTextColor(Color.GREEN);
                                 imgStatus.setImageResource(R.drawable.berhasil);
-                                btngallery.setVisibility(View.GONE);
+//                                btngallery.setVisibility(View.GONE);
+                                btncetak.setVisibility(View.GONE);
                                 btnsimpan.setVisibility(View.GONE);
                                 findViewById(R.id.rekening).setVisibility(View.GONE);
                             } else if (data.getInt("status") ==  0) {
@@ -168,7 +170,7 @@ public class StatusActivity extends AppCompatActivity {
                         return map;
                     }
                 };
-        AppController.getInstance().addToRequestQueue(sendData, "json_obj_req");
+//        AppController.getInstance().addToRequestQueue(sendData, "json_obj_req");
     }
     private void simpanData() {
         pd.setMessage("Mengirim Data");
@@ -228,133 +230,134 @@ public class StatusActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            if (requestCode == TAG_GALLERY) {
-                Uri uri_path = data.getData();
-                mGalery.setPhotoUri(uri_path);
-                String path = mGalery.getPath();
-                selected_photo = path;
-                try {
-                    Bitmap bitmap;
-                    bitmap = ImageLoader.init().from(path).requestSize(512, 512).getBitmap();
-                    gambar.setImageBitmap(bitmap);
+        if (resultCode ==  RESULT_OK && requestCode == TAG_GALLERY && data != null && data.getData() != null){
 
-                    Snackbar.make(findViewById(android.R.id.content), "Success Loader Image", Snackbar.LENGTH_SHORT).show();
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                    Snackbar.make(findViewById(android.R.id.content), "Something  Wrong", Snackbar.LENGTH_SHORT).show();
-                }
+            Uri uri_path = data.getData();
+
+            try {
+                Bitmap bitmap;
+
+                bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri_path);
+                gambar.setImageBitmap(bitmap);
+
+                Snackbar.make(findViewById(android.R.id.content), "Success Loader Image", Snackbar.LENGTH_SHORT).show();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+
+                Snackbar.make(findViewById(android.R.id.content), "Something Wrong", Snackbar.LENGTH_SHORT).show();
+            }catch (IOException e){
+                e.printStackTrace();
             }
         }
     }
-    public void createPDF() {
-        SimpleDateFormat s = new  SimpleDateFormat("ddMMyyyyhhmmss");
-        String format = s.format(new Date());
-        Document doc = new Document();
-        String outPath = FileUtils.getAppPath(getApplicationContext()) + "/" + format + ".pdf";
-        try {
-            PdfWriter.getInstance(doc, new FileOutputStream(outPath));
-            doc.open();
-// Document Settings
-            doc.setPageSize(PageSize.A4);
-            doc.addCreationDate();
-            doc.addAuthor("Ivan");
-            doc.addCreator("Ivan");
-/**
- * How to USE FONT....
- */
-            BaseFont urName = BaseFont.createFont("assets/fonts/brandon_medium.otf", "UTF-8", BaseFont.EMBEDDED);
-/***
- * Variables for further use....
- */
-            BaseColor mColorAccent = new BaseColor(0, 153, 204, 255);
-            float mHeadingFontSize = 20.0f;
-            float mValueFontSize = 26.0f;
-            Font mTitleFont = new Font(urName, 36.0f, Font.NORMAL, BaseColor.BLACK);
-            Font mHeadingFont = new Font(urName, mHeadingFontSize, Font.NORMAL, mColorAccent);
-            Font mValueFont = new Font(urName, mValueFontSize, Font.NORMAL, BaseColor.BLACK);
-// LINE SEPARATOR
-            LineSeparator lineSeparator = new LineSeparator();
-            lineSeparator.setLineColor(new BaseColor(0, 0, 0,
-                    68));
-
-            // Order Details...
-// Title
-            Chunk mTitleChunk = new Chunk("Invoice", mTitleFont);
-            Paragraph mTitleParagraph = new Paragraph(mTitleChunk);
-            mTitleParagraph.setAlignment(Element.ALIGN_CENTER);
-            doc.add(mTitleParagraph);
-// Adding Line Breakable Space....
-            doc.add(new Paragraph(""));
-// Adding Horizontal Line...
-            doc.add(new Chunk(lineSeparator));
-// Adding Line Breakable Space....
-            doc.add(new Paragraph(""));
-// Tanggal
-            Chunk mDateChunk = new Chunk("Order Date:", mHeadingFont);
-            Paragraph mOrderDateParagraph = new Paragraph(mDateChunk);
-            doc.add(mOrderDateParagraph);
-            Chunk mDateValueChunk = new Chunk(date,  mValueFont);
-            Paragraph mDateValueParagraph = new Paragraph(mDateValueChunk);
-            doc.add(mDateValueParagraph);
-            doc.add(new Paragraph(""));
-            doc.add(new Chunk(lineSeparator));
-            doc.add(new Paragraph(""));
-// Akun
-            Chunk mAcNameChunk = new Chunk("Account Name:",  mHeadingFont);
-            Paragraph mAcNameParagraph = new Paragraph(mAcNameChunk);
-            doc.add(mAcNameParagraph);
-            Chunk mAcNameValueChunk = new Chunk(username.getText().toString(), mValueFont);
-            Paragraph mAcNameValueParagraph = new Paragraph(mAcNameValueChunk);
-            doc.add(mAcNameValueParagraph);
-//adds paragraph and line seperator
-            doc.add(new Paragraph(""));
-            doc.add(new Chunk(lineSeparator));
-            doc.add(new Paragraph(""));
-// Total
-            Chunk mAmountChunk = new Chunk("Total:", mHeadingFont);
-            Paragraph mAmountParagraph = new Paragraph(mAmountChunk);
-            doc.add(mAmountParagraph);
-            Chunk mAmountValueChunk = new Chunk(total.getText().toString(), mValueFont);
-            Paragraph mAmountValueParagraph = new Paragraph(mAmountValueChunk);
-            doc.add(mAmountValueParagraph);
-//adds paragraph and line seperator
-            doc.add(new Paragraph(""));
-            doc.add(new Chunk(lineSeparator));
-            doc.add(new Paragraph(""));
-// Pembayaran
-            Chunk mCashChunk = new Chunk("Cash:",  mHeadingFont);
-            Paragraph mCashParagraph = new Paragraph(mCashChunk);
-            doc.add(mCashParagraph);
-            Chunk mCashValueChunk = new Chunk("Rp. " + decimalFormat.format(bayar), mValueFont);
-            Paragraph mCashValueParagraph = new
-                    Paragraph(mCashValueChunk);
-            doc.add(mCashValueParagraph);
-//adds paragraph and line seperator
-            doc.add(new Paragraph(""));
-            doc.add(new Chunk(lineSeparator));
-            doc.add(new Paragraph(""));
-// Kembalian
-            Chunk mChangeChunk = new Chunk("Change:", mHeadingFont);
-            Paragraph mChangeParagraph = new Paragraph(mChangeChunk);
-            doc.add(mChangeParagraph);
-            Chunk mChangeValueChunk = new Chunk("Rp. " + decimalFormat.format(kembali), mValueFont);
-            Paragraph mChangeValueParagraph = new Paragraph(mChangeValueChunk);
-            doc.add(mChangeValueParagraph);
-//adds paragraph and line seperator
-            doc.add(new Paragraph(""));
-            doc.add(new Chunk(lineSeparator));
-            doc.add(new Paragraph(""));
-            doc.close();
-            FileUtils.openFile(getApplicationContext(), new File(outPath));
-        } catch (DocumentException e) {
-            e.printStackTrace();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (DocumentException e) {
-            e.printStackTrace();
-        }
-    }
+//    public void createPDF() {
+//        SimpleDateFormat s = new  SimpleDateFormat("ddMMyyyyhhmmss");
+//        String format = s.format(new Date());
+//        Document doc = new Document();
+//        String outPath = FileUtils(getApplicationContext()) + "/" + format + ".pdf";
+//        try {
+//            PdfWriter.getInstance(doc, new FileOutputStream(outPath));
+//            doc.open();
+//// Document Settings
+//            doc.setPageSize(PageSize.A4);
+//            doc.addCreationDate();
+//            doc.addAuthor("Ivan");
+//            doc.addCreator("Ivan");
+///**
+// * How to USE FONT....
+// */
+//            BaseFont urName = BaseFont.createFont("assets/fonts/brandon_medium.otf", "UTF-8", BaseFont.EMBEDDED);
+///***
+// * Variables for further use....
+// */
+//            BaseColor mColorAccent = new BaseColor(0, 153, 204, 255);
+//            float mHeadingFontSize = 20.0f;
+//            float mValueFontSize = 26.0f;
+//            Font mTitleFont = new Font(urName, 36.0f, Font.NORMAL, BaseColor.BLACK);
+//            Font mHeadingFont = new Font(urName, mHeadingFontSize, Font.NORMAL, mColorAccent);
+//            Font mValueFont = new Font(urName, mValueFontSize, Font.NORMAL, BaseColor.BLACK);
+//// LINE SEPARATOR
+//            LineSeparator lineSeparator = new LineSeparator();
+//            lineSeparator.setLineColor(new BaseColor(0, 0, 0,
+//                    68));
+//
+//            // Order Details...
+//// Title
+//            Chunk mTitleChunk = new Chunk("Invoice", mTitleFont);
+//            Paragraph mTitleParagraph = new Paragraph(mTitleChunk);
+//            mTitleParagraph.setAlignment(Element.ALIGN_CENTER);
+//            doc.add(mTitleParagraph);
+//// Adding Line Breakable Space....
+//            doc.add(new Paragraph(""));
+//// Adding Horizontal Line...
+//            doc.add(new Chunk(lineSeparator));
+//// Adding Line Breakable Space....
+//            doc.add(new Paragraph(""));
+//// Tanggal
+//            Chunk mDateChunk = new Chunk("Order Date:", mHeadingFont);
+//            Paragraph mOrderDateParagraph = new Paragraph(mDateChunk);
+//            doc.add(mOrderDateParagraph);
+//            Chunk mDateValueChunk = new Chunk(date,  mValueFont);
+//            Paragraph mDateValueParagraph = new Paragraph(mDateValueChunk);
+//            doc.add(mDateValueParagraph);
+//            doc.add(new Paragraph(""));
+//            doc.add(new Chunk(lineSeparator));
+//            doc.add(new Paragraph(""));
+//// Akun
+//            Chunk mAcNameChunk = new Chunk("Account Name:",  mHeadingFont);
+//            Paragraph mAcNameParagraph = new Paragraph(mAcNameChunk);
+//            doc.add(mAcNameParagraph);
+//            Chunk mAcNameValueChunk = new Chunk(username.getText().toString(), mValueFont);
+//            Paragraph mAcNameValueParagraph = new Paragraph(mAcNameValueChunk);
+//            doc.add(mAcNameValueParagraph);
+////adds paragraph and line seperator
+//            doc.add(new Paragraph(""));
+//            doc.add(new Chunk(lineSeparator));
+//            doc.add(new Paragraph(""));
+//// Total
+//            Chunk mAmountChunk = new Chunk("Total:", mHeadingFont);
+//            Paragraph mAmountParagraph = new Paragraph(mAmountChunk);
+//            doc.add(mAmountParagraph);
+//            Chunk mAmountValueChunk = new Chunk(total.getText().toString(), mValueFont);
+//            Paragraph mAmountValueParagraph = new Paragraph(mAmountValueChunk);
+//            doc.add(mAmountValueParagraph);
+////adds paragraph and line seperator
+//            doc.add(new Paragraph(""));
+//            doc.add(new Chunk(lineSeparator));
+//            doc.add(new Paragraph(""));
+//// Pembayaran
+//            Chunk mCashChunk = new Chunk("Cash:",  mHeadingFont);
+//            Paragraph mCashParagraph = new Paragraph(mCashChunk);
+//            doc.add(mCashParagraph);
+//            Chunk mCashValueChunk = new Chunk("Rp. " + decimalFormat.format(bayar), mValueFont);
+//            Paragraph mCashValueParagraph = new
+//                    Paragraph(mCashValueChunk);
+//            doc.add(mCashValueParagraph);
+////adds paragraph and line seperator
+//            doc.add(new Paragraph(""));
+//            doc.add(new Chunk(lineSeparator));
+//            doc.add(new Paragraph(""));
+//// Kembalian
+//            Chunk mChangeChunk = new Chunk("Change:", mHeadingFont);
+//            Paragraph mChangeParagraph = new Paragraph(mChangeChunk);
+//            doc.add(mChangeParagraph);
+//            Chunk mChangeValueChunk = new Chunk("Rp. " + decimalFormat.format(kembali), mValueFont);
+//            Paragraph mChangeValueParagraph = new Paragraph(mChangeValueChunk);
+//            doc.add(mChangeValueParagraph);
+////adds paragraph and line seperator
+//            doc.add(new Paragraph(""));
+//            doc.add(new Chunk(lineSeparator));
+//            doc.add(new Paragraph(""));
+//            doc.close();
+//            FileUtils.openFile(getApplicationContext(), new File(outPath));
+//        } catch (DocumentException e) {
+//            e.printStackTrace();
+//        } catch (FileNotFoundException e) {
+//            e.printStackTrace();
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        } catch (DocumentException e) {
+//            e.printStackTrace();
+//        }
+//    }
 }
