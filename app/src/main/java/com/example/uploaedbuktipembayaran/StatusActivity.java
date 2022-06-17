@@ -21,26 +21,17 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.example.uploaedbuktipembayaran.Util.ServerAPI;
 import com.google.android.material.snackbar.Snackbar;
 
-import com.itextpdf.text.BaseColor;
-import com.itextpdf.text.Chunk;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Element;
-import com.itextpdf.text.Font;
-import com.itextpdf.text.PageSize;
-import com.itextpdf.text.Paragraph;
-
-import com.itextpdf.text.pdf.BaseFont;
-import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.text.pdf.draw.LineSeparator;
 import com.kosalgeek.android.photoutil.GalleryPhoto;
 import com.kosalgeek.android.photoutil.ImageBase64;
 import com.kosalgeek.android.photoutil.ImageLoader;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -76,7 +67,6 @@ public class StatusActivity extends AppCompatActivity {
         tanggal = (TextView) findViewById(R.id.tanggal);
         nota = (TextView) findViewById(R.id.no_nota);
         username = (TextView) findViewById(R.id.user);
-        username.setText(getIntent().getStringExtra(TAG_USERNAME));
         total = (TextView) findViewById(R.id.total_biaya);
         imgStatus = (ImageView) findViewById(R.id.img_status);
         gambar = (ImageView) findViewById(R.id.inp_gambar);
@@ -87,7 +77,8 @@ public class StatusActivity extends AppCompatActivity {
         decimalFormat = new DecimalFormat("#,##0.00");
         pd = new ProgressDialog(StatusActivity.this);
         mGalery = new GalleryPhoto(getApplicationContext());
-//        loadJson();
+
+        loadData();
         btngallery.setOnClickListener(new View.OnClickListener() {
                                                   @Override
                                                   public void onClick(View view) {
@@ -115,40 +106,38 @@ public class StatusActivity extends AppCompatActivity {
             }
         });
     }
-    private void loadJson() {
-        pd.setMessage("Loading");
-        pd.setCancelable(false);
-        pd.show();
-        StringRequest sendData = new StringRequest(Request.Method.POST, ServerAPI.URL_DASHBOARD_JUAL,
-                new Response.Listener<String>() {
+
+    private void loadData() {
+        JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.PUT,ServerAPI.URL_DASHBOARD_JUAL,null,
+                new Response.Listener<JSONArray>() {
                     @Override
-
-                    public void onResponse(String response) {
-
-                        pd.cancel();
-                        try {
-                            JSONObject data = new JSONObject(response);
-
-                            tanggal.setText(data.getString("tanggal"));
-                            nota.setText(data.getString("no_nota"));
-                            bayar = data.getInt("pembayaran");
-                            kembali = data.getInt("kembalian");
-                            total.setText("Rp. " +  decimalFormat.format(data.getInt("total_biaya")));
-                            if (data.getInt("status") == 1) {  status.setText("Sudah  Dibayar");
-                                        status.setTextColor(Color.GREEN);
-                                imgStatus.setImageResource(R.drawable.berhasil);
-//                                btngallery.setVisibility(View.GONE);
-                                btncetak.setVisibility(View.GONE);
-                                btnsimpan.setVisibility(View.GONE);
-                                findViewById(R.id.rekening).setVisibility(View.GONE);
-                            } else if (data.getInt("status") ==  0) {
-                                status.setText("Belum  Dibayar");
-                                        status.setTextColor(Color.RED);
-                                imgStatus.setImageResource(R.drawable.gagal);
-                                btncetak.setVisibility(View.GONE);
+                    public void onResponse(JSONArray jsonArray) {
+                        for (int i = 0; i < jsonArray.length(); i++) {
+                            try {
+                                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                                tanggal.setText(jsonObject.getString("tgl_jual"));
+                                nota.setText(jsonObject.getString("no_nota"));
+                                bayar = jsonObject.getInt("pembayaran");
+                                username.setText(jsonObject.getString("username"));
+                                kembali = jsonObject.getInt("kembalian");
+                                total.setText("Rp. " +  decimalFormat.format(jsonObject.getInt("total_biaya")));
+                                if (jsonObject.getInt("status") == 1) {
+                                    status.setText("Sudah  Dibayar");
+                                    status.setTextColor(Color.GREEN);
+                                    imgStatus.setImageResource(R.drawable.berhasil);
+                                    btngallery.setVisibility(View.GONE);
+                                    btncetak.setVisibility(View.GONE);
+                                    btnsimpan.setVisibility(View.GONE);
+                                    findViewById(R.id.rekening).setVisibility(View.GONE);
+                                } else if (jsonObject.getInt("status") ==  0) {
+                                    status.setText("Belum  Dibayar");
+                                    status.setTextColor(Color.RED);
+                                    imgStatus.setImageResource(R.drawable.gagal);
+                                    btncetak.setVisibility(View.GONE);
+                                }
+                            } catch (JSONException e) {
+                                e.printStackTrace();
                             }
-                        } catch (JSONException e) {
-                            e.printStackTrace();
                         }
                     }
                 },
@@ -162,16 +151,17 @@ public class StatusActivity extends AppCompatActivity {
                                 error.getMessage());
                     }
                 }) {
-                    @Override
-                    protected Map<String, String> getParams() {
-                        Map<String, String> map = new HashMap<>();
-                        map.put("username",
-                                username.getText().toString());
-                        return map;
-                    }
-                };
-//        AppController.getInstance().addToRequestQueue(sendData, "json_obj_req");
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> map = new HashMap<>();
+                map.put("username",
+                        username.getText().toString());
+                return map;
+            }
+        };
+        AppController.getInstance().addToRequestQueue(jsonArrayRequest);
     }
+
     private void simpanData() {
         pd.setMessage("Mengirim Data");
         pd.setCancelable(false);
@@ -193,8 +183,7 @@ public class StatusActivity extends AppCompatActivity {
                             try {
                                 JSONObject res = new
                                         JSONObject(response);
-                                Toast.makeText(StatusActivity.this, "pesan : " +
-                                        res.getString("message"), Toast.LENGTH_SHORT).show();
+                                Toast.makeText(StatusActivity.this, "pesan : " + res.getString("message"), Toast.LENGTH_SHORT).show();
                             } catch (JSONException e) {
                                 e.printStackTrace();
                             }

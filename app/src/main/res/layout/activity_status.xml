@@ -152,7 +152,6 @@
         android:textColor="@color/purple_200" />
     <Button
         android:id="@+id/btn_cetak"
-        android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/linearLayout2"
@@ -163,8 +162,8 @@
 
     <ImageView
         android:id="@+id/inp_gambar"
-        android:layout_width="379dp"
-        android:layout_height="161dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_below="@id/btn_gallery"
         android:layout_marginTop="10dp"
         android:scaleType="centerCrop" />
