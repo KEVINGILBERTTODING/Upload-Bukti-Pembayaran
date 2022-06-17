@@ -2,6 +2,7 @@ package com.example.uploaedbuktipembayaran;
 
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
@@ -9,6 +10,7 @@ import android.os.Bundle;
 
 import android.os.FileUtils;
 import android.provider.MediaStore;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -16,6 +18,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.android.volley.Request;
@@ -35,6 +38,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -54,6 +58,7 @@ public class StatusActivity extends AppCompatActivity {
     ProgressDialog pd;
     DecimalFormat decimalFormat;
     GalleryPhoto mGalery;
+    Bitmap bitmap;
     String encode_image = null;
     private final int TAG_GALLERY = 2222;
     String selected_photo = null;
@@ -97,18 +102,71 @@ public class StatusActivity extends AppCompatActivity {
         {
             @Override
             public void onClick(View view) {
-                if (selected_photo != null) {
-                    simpanData();
-                }
-                else {
-                    Toast.makeText(getApplicationContext(), "Upload bukti pembayaran terlebih dahulu", Toast.LENGTH_LONG).show();
-                }
+                simpanData2();
             }
         });
     }
+    private void loadJson() {
+        pd.setMessage("Loading");
+        pd.setCancelable(false);
+        pd.show();
+        StringRequest sendData = new StringRequest(Request.Method.POST, ServerAPI.URL_DASHBOARD_JUAL,
+                new Response.Listener<String>() {
+                    @Override
+
+                    public void onResponse(String response) {
+
+                        pd.cancel();
+                        try {
+                            JSONObject data = new JSONObject(response);
+                            tanggal.setText(data.getString("tgl_jual"));
+                            nota.setText(data.getString("no_nota"));
+                            bayar = data.getInt("pembayaran");
+                            username.setText(data.getString("username"));
+                            kembali = data.getInt("kembalian");
+                            total.setText("Rp. " +  decimalFormat.format(data.getInt("total_biaya")));
+                            if (data.getInt("status") == 1) {
+                                status.setText("Sudah  Dibayar");
+                                status.setTextColor(Color.GREEN);
+                                imgStatus.setImageResource(R.drawable.berhasil);
+                                btngallery.setVisibility(View.GONE);
+                                btncetak.setVisibility(View.GONE);
+                                btnsimpan.setVisibility(View.GONE);
+                                findViewById(R.id.rekening).setVisibility(View.GONE);
+                            } else if (data.getInt("status") ==  0) {
+                                status.setText("Belum  Dibayar");
+                                status.setTextColor(Color.RED);
+                                imgStatus.setImageResource(R.drawable.gagal);
+                                btncetak.setVisibility(View.GONE);
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+
+                    public void onErrorResponse(VolleyError error) {
+                        pd.cancel();
+
+                        Log.d("volley", "error : " +
+                                error.getMessage());
+                    }
+                }) {
+                    @Override
+                    protected Map<String, String> getParams() {
+                        Map<String, String> map = new HashMap<>();
+                        map.put("username",
+                                username.getText().toString());
+                        return map;
+                    }
+                };
+        AppController.getInstance().addToRequestQueue(sendData, "json_obj_req");
+    }
 
     private void loadData() {
-        JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.PUT,ServerAPI.URL_DASHBOARD_JUAL,null,
+        JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(Request.Method.GET,ServerAPI.URL_DASHBOARD_JUAL,null,
                 new Response.Listener<JSONArray>() {
                     @Override
                     public void onResponse(JSONArray jsonArray) {
@@ -161,6 +219,58 @@ public class StatusActivity extends AppCompatActivity {
         };
         AppController.getInstance().addToRequestQueue(jsonArrayRequest);
     }
+
+    private void simpanData2() {
+        pd.setMessage("Mengirim Data");
+        pd.setCancelable(false);
+        pd.show();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+        byte[] imageBytes = baos.toByteArray();
+        final String imageString = Base64.encodeToString(imageBytes, Base64.DEFAULT);
+
+        StringRequest sendData = new StringRequest(Request.Method.POST, ServerAPI.URL_JUAL2,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response)
+                    {
+                        pd.cancel();
+                        Log.d("TAG", "onResponse: "+response);
+                        try {
+                            JSONObject res = new JSONObject(response);
+                            Toast.makeText(StatusActivity.this, "pesan : " +
+                                    res.getString("message"), Toast.LENGTH_SHORT).show();
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                        Intent intent = new Intent(getApplicationContext(), StatusActivity.class);
+                        intent.putExtra("no_nota", nota.getText().toString());
+                        startActivity(intent);
+                        finish();
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        pd.cancel();
+                        Toast.makeText(StatusActivity.this,
+                                "pesan : Gagal Kirim Data", Toast.LENGTH_SHORT).show();
+                    }
+                }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> map = new HashMap<>();
+                map.put("no_nota", nota.getText().toString());
+                map.put("gambar", imageString);
+                return map;
+            }
+        };
+
+
+        AppController.getInstance().addToRequestQueue(sendData);
+    }
+
+
 
     private void simpanData() {
         pd.setMessage("Mengirim Data");
@@ -217,6 +327,23 @@ public class StatusActivity extends AppCompatActivity {
         }
     }
     @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == TAG_GALLERY){
+            if (grantResults.length>0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                //gallery intent
+                Intent galleryIntent = new Intent(Intent.ACTION_GET_CONTENT);
+                galleryIntent.setType("image/*");
+                startActivityForResult(galleryIntent, TAG_GALLERY);
+            }
+            else {
+                Toast.makeText(this, "Tidak ada perizinan untuk mengakses gambar", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode ==  RESULT_OK && requestCode == TAG_GALLERY && data != null && data.getData() != null){
@@ -224,7 +351,6 @@ public class StatusActivity extends AppCompatActivity {
             Uri uri_path = data.getData();
 
             try {
-                Bitmap bitmap;
 
                 bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri_path);
                 gambar.setImageBitmap(bitmap);
@@ -239,114 +365,4 @@ public class StatusActivity extends AppCompatActivity {
             }
         }
     }
-//    public void createPDF() {
-//        SimpleDateFormat s = new  SimpleDateFormat("ddMMyyyyhhmmss");
-//        String format = s.format(new Date());
-//        Document doc = new Document();
-//        String outPath = FileUtils(getApplicationContext()) + "/" + format + ".pdf";
-//        try {
-//            PdfWriter.getInstance(doc, new FileOutputStream(outPath));
-//            doc.open();
-//// Document Settings
-//            doc.setPageSize(PageSize.A4);
-//            doc.addCreationDate();
-//            doc.addAuthor("Ivan");
-//            doc.addCreator("Ivan");
-///**
-// * How to USE FONT....
-// */
-//            BaseFont urName = BaseFont.createFont("assets/fonts/brandon_medium.otf", "UTF-8", BaseFont.EMBEDDED);
-///***
-// * Variables for further use....
-// */
-//            BaseColor mColorAccent = new BaseColor(0, 153, 204, 255);
-//            float mHeadingFontSize = 20.0f;
-//            float mValueFontSize = 26.0f;
-//            Font mTitleFont = new Font(urName, 36.0f, Font.NORMAL, BaseColor.BLACK);
-//            Font mHeadingFont = new Font(urName, mHeadingFontSize, Font.NORMAL, mColorAccent);
-//            Font mValueFont = new Font(urName, mValueFontSize, Font.NORMAL, BaseColor.BLACK);
-//// LINE SEPARATOR
-//            LineSeparator lineSeparator = new LineSeparator();
-//            lineSeparator.setLineColor(new BaseColor(0, 0, 0,
-//                    68));
-//
-//            // Order Details...
-//// Title
-//            Chunk mTitleChunk = new Chunk("Invoice", mTitleFont);
-//            Paragraph mTitleParagraph = new Paragraph(mTitleChunk);
-//            mTitleParagraph.setAlignment(Element.ALIGN_CENTER);
-//            doc.add(mTitleParagraph);
-//// Adding Line Breakable Space....
-//            doc.add(new Paragraph(""));
-//// Adding Horizontal Line...
-//            doc.add(new Chunk(lineSeparator));
-//// Adding Line Breakable Space....
-//            doc.add(new Paragraph(""));
-//// Tanggal
-//            Chunk mDateChunk = new Chunk("Order Date:", mHeadingFont);
-//            Paragraph mOrderDateParagraph = new Paragraph(mDateChunk);
-//            doc.add(mOrderDateParagraph);
-//            Chunk mDateValueChunk = new Chunk(date,  mValueFont);
-//            Paragraph mDateValueParagraph = new Paragraph(mDateValueChunk);
-//            doc.add(mDateValueParagraph);
-//            doc.add(new Paragraph(""));
-//            doc.add(new Chunk(lineSeparator));
-//            doc.add(new Paragraph(""));
-//// Akun
-//            Chunk mAcNameChunk = new Chunk("Account Name:",  mHeadingFont);
-//            Paragraph mAcNameParagraph = new Paragraph(mAcNameChunk);
-//            doc.add(mAcNameParagraph);
-//            Chunk mAcNameValueChunk = new Chunk(username.getText().toString(), mValueFont);
-//            Paragraph mAcNameValueParagraph = new Paragraph(mAcNameValueChunk);
-//            doc.add(mAcNameValueParagraph);
-////adds paragraph and line seperator
-//            doc.add(new Paragraph(""));
-//            doc.add(new Chunk(lineSeparator));
-//            doc.add(new Paragraph(""));
-//// Total
-//            Chunk mAmountChunk = new Chunk("Total:", mHeadingFont);
-//            Paragraph mAmountParagraph = new Paragraph(mAmountChunk);
-//            doc.add(mAmountParagraph);
-//            Chunk mAmountValueChunk = new Chunk(total.getText().toString(), mValueFont);
-//            Paragraph mAmountValueParagraph = new Paragraph(mAmountValueChunk);
-//            doc.add(mAmountValueParagraph);
-////adds paragraph and line seperator
-//            doc.add(new Paragraph(""));
-//            doc.add(new Chunk(lineSeparator));
-//            doc.add(new Paragraph(""));
-//// Pembayaran
-//            Chunk mCashChunk = new Chunk("Cash:",  mHeadingFont);
-//            Paragraph mCashParagraph = new Paragraph(mCashChunk);
-//            doc.add(mCashParagraph);
-//            Chunk mCashValueChunk = new Chunk("Rp. " + decimalFormat.format(bayar), mValueFont);
-//            Paragraph mCashValueParagraph = new
-//                    Paragraph(mCashValueChunk);
-//            doc.add(mCashValueParagraph);
-////adds paragraph and line seperator
-//            doc.add(new Paragraph(""));
-//            doc.add(new Chunk(lineSeparator));
-//            doc.add(new Paragraph(""));
-//// Kembalian
-//            Chunk mChangeChunk = new Chunk("Change:", mHeadingFont);
-//            Paragraph mChangeParagraph = new Paragraph(mChangeChunk);
-//            doc.add(mChangeParagraph);
-//            Chunk mChangeValueChunk = new Chunk("Rp. " + decimalFormat.format(kembali), mValueFont);
-//            Paragraph mChangeValueParagraph = new Paragraph(mChangeValueChunk);
-//            doc.add(mChangeValueParagraph);
-////adds paragraph and line seperator
-//            doc.add(new Paragraph(""));
-//            doc.add(new Chunk(lineSeparator));
-//            doc.add(new Paragraph(""));
-//            doc.close();
-//            FileUtils.openFile(getApplicationContext(), new File(outPath));
-//        } catch (DocumentException e) {
-//            e.printStackTrace();
-//        } catch (FileNotFoundException e) {
-//            e.printStackTrace();
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        } catch (DocumentException e) {
-//            e.printStackTrace();
-//        }
-//    }
 }
